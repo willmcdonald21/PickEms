@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Player {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  picks     Pick[]
+}
+
+model Game {
+  id        String    @id @default(cuid())
+  week      Int
+  homeTeam  String
+  awayTeam  String
+  kickoff   DateTime
+  homeScore Int?
+  awayScore Int?
+  winner    Winner?
+  picks     Pick[]
+
+  @@index([week])
+}
+
+enum Winner {
+  HOME
+  AWAY
+}
+
+model Pick {
+  id          String   @id @default(cuid())
+  playerId    String
+  gameId      String
+  pickedTeam  Winner
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  game   Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, gameId])
+}
