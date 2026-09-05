@@ -1,12 +1,22 @@
 # PickEms
 
-A weekly sports pick'em pool. Enter your name, pick winners for each game
-in a week, and see how you stack up on the leaderboard.
+A two-person NFL league scored **against the spread**. Each week a coin flip
+decides who drafts first; the two of you draft 5 sides from that week's slate,
+and whoever finishes the season with the most ATS wins takes it.
+
+## The rules it enforces
+
+- **Coin flip** each week. The winner gets picks **1, 3, 5**; the loser gets
+  **2, 4**. The 3-vs-2 split is the point — winning the flip is the weekly edge.
+- **Draft a side, not a winner.** You take `SEA -3.5`, not "Seattle."
+- **Both sides stay live.** If one of you takes `SEA -3.5`, the other can take
+  `NE +3.5`. Only the identical side is blocked.
+- **Weekly winner** = most ATS wins. **Season champion** = most total ATS wins.
 
 ## Stack
 
-- [Next.js](https://nextjs.org) (App Router) + TypeScript + Tailwind CSS
-- [Prisma](https://www.prisma.io) + SQLite for storage
+Next.js (App Router) + TypeScript + Tailwind, Prisma + SQLite. Slate, spreads,
+and final scores come from ESPN's public scoreboard endpoint — no API key.
 
 ## Getting started
 
@@ -14,25 +24,51 @@ in a week, and see how you stack up on the leaderboard.
 npm install
 cp .env.example .env   # set your own ADMIN_PASSWORD
 npx prisma migrate dev
-npm run db:seed        # optional: adds a few sample games
+npm run db:seed        # creates the two players
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000). Player names are set in
+`prisma/seed.ts` — edit them before seeding.
 
-## How it works
+## Weekly flow
 
-- **/** — enter your name (saved in your browser) and pick a winner for
-  each game in the current week. Picks lock once a game's kickoff time
-  passes.
-- **/leaderboard** — shows every player's number of correct picks.
-- **/admin** — add games and record final results. Protected by the
-  `ADMIN_PASSWORD` env var (entered once per browser session, not a real
-  auth system — don't reuse a sensitive password).
+1. **Admin → Sync slate** for the season and week. This pulls the full slate and
+   **freezes each game's spread**.
+2. **Admin → coin flip.** Record who won it, or let the app flip. Write-once per
+   week, so it can't be re-rolled.
+3. **Home page → draft.** Enter the 5 picks in order; the app tracks whose slot
+   is next and greys out sides that are gone.
+4. **Admin → Sync scores & grade** once games finish. Grades every pick W/L/PUSH
+   and decides the week.
 
-## Data model
+## Why spreads are frozen
 
-`Player` and `Game` are joined by `Pick` (one per player per game). A
-`Game`'s `winner` field (`HOME`/`AWAY`) is set from the admin page once
-the real game finishes; the leaderboard compares it against each
-player's `pickedTeam`.
+ESPN **drops the odds once a game goes final** — a line that isn't captured
+before kickoff is gone for good. So the spread is written once, when the slate
+is first loaded, and no later sync overwrites it. Both players are graded
+against that same frozen line, which guarantees exactly one side covers (or it's
+a push).
+
+If ESPN has no line for a game, that game isn't draftable until you set one by
+hand under **Games missing a spread** in Admin.
+
+## ATS grading
+
+With `homeSpread` stored as the home team's line (negative = home favored):
+
+```
+adjusted = homeScore + homeSpread - awayScore
+adjusted > 0 → home side covers
+adjusted < 0 → away side covers
+adjusted = 0 → push
+```
+
+## Notes
+
+- Identity is trust-based — you pick which player you are, there's no login. The
+  admin password only gates syncing, the coin flip, grading, and undo.
+- **Undo** removes only the most recent pick; deleting a middle pick would leak
+  information about the picks made after it.
+- SQLite is local-only. Moving to a hosted Postgres later is a Prisma provider
+  change plus regenerated migrations.

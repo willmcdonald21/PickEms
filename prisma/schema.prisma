@@ -8,41 +8,91 @@ datasource db {
 }
 
 model Player {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
-  picks     Pick[]
+  id       String      @id @default(cuid())
+  name     String      @unique
+  picks    DraftPick[]
+  flipWins Week[]      @relation("FlipWinner")
+}
+
+model Week {
+  id     String     @id @default(cuid())
+  season Int
+  number Int
+  status WeekStatus @default(PENDING)
+
+  flipWinnerId String?
+  flipWinner   Player? @relation("FlipWinner", fields: [flipWinnerId], references: [id])
+  flippedAt    DateTime?
+
+  spreadsFrozenAt DateTime?
+
+  games Game[]
+  picks DraftPick[]
+
+  @@unique([season, number])
 }
 
 model Game {
-  id        String    @id @default(cuid())
-  week      Int
-  homeTeam  String
-  awayTeam  String
-  kickoff   DateTime
+  id           String @id @default(cuid())
+  weekId       String
+  espnEventId  String @unique
+
+  homeTeam String
+  awayTeam String
+  homeAbbr String
+  awayAbbr String
+  kickoff  DateTime
+
+  // Always the HOME team's line: negative means home is favored.
+  // Frozen once at slate load — ESPN drops odds after a game goes final.
+  homeSpread     Float?
+  spreadFrozenAt DateTime?
+
   homeScore Int?
   awayScore Int?
-  winner    Winner?
-  picks     Pick[]
+  completed Boolean @default(false)
 
-  @@index([week])
+  week  Week        @relation(fields: [weekId], references: [id], onDelete: Cascade)
+  picks DraftPick[]
+
+  @@index([weekId])
 }
 
-enum Winner {
+model DraftPick {
+  id         String      @id @default(cuid())
+  weekId     String
+  playerId   String
+  gameId     String
+  pickNumber Int
+  side       Side
+  result     PickResult?
+  createdAt  DateTime    @default(now())
+
+  week   Week   @relation(fields: [weekId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  game   Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  // Same side can't be taken twice; the opposite side stays open.
+  @@unique([gameId, side])
+  @@unique([weekId, pickNumber])
+  @@index([weekId])
+}
+
+enum Side {
   HOME
   AWAY
 }
 
-model Pick {
-  id          String   @id @default(cuid())
-  playerId    String
-  gameId      String
-  pickedTeam  Winner
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+enum PickResult {
+  WIN
+  LOSS
+  PUSH
+}
 
-  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  game   Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
-
-  @@unique([playerId, gameId])
+enum WeekStatus {
+  PENDING
+  SLATE_LOADED
+  DRAFTING
+  COMPLETE
+  GRADED
 }

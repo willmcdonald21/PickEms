@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "PickEms",
-  description: "Weekly pick'em pool with your friends",
+  description: "Two-person NFL draft pool scored against the spread",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -34,7 +34,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               href="/leaderboard"
               className="text-sm font-medium text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50"
             >
-              Leaderboard
+              Standings
             </Link>
             <Link
               href="/admin"
