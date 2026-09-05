@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const PLAYERS = ["Will", "Opponent"];
+const PLAYERS = ["Will", "Michael"];
 
 async function main() {
   for (const name of PLAYERS) {
