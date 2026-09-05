@@ -107,11 +107,15 @@ export async function recordCoinFlip(
   checkAdminPassword(adminPassword);
 
   const week = await prisma.week.findUniqueOrThrow({ where: { id: weekId } });
-  if (week.flipWinnerId) {
-    throw new Error("The coin flip for this week has already been recorded.");
-  }
   if (week.status === "PENDING") {
     throw new Error("Load the slate for this week first.");
+  }
+
+  // The flip decides who owns picks 1/3/5, so changing it once picks exist
+  // would reassign slots out from under the picks already made.
+  const pickCount = await prisma.draftPick.count({ where: { weekId } });
+  if (week.flipWinnerId && pickCount > 0) {
+    throw new Error("Picks are already in — undo them before changing the flip.");
   }
 
   const players = await getPlayers();

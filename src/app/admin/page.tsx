@@ -175,7 +175,9 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
           <p className="text-sm text-zinc-500">No weeks synced yet.</p>
         ) : (
           <div className="flex flex-col gap-3">
-            {weeks.map((week) => (
+            {weeks.map((week) => {
+              const flipLocked = week._count.picks > 0;
+              return (
               <div key={week.id} className={card}>
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <span className="font-medium">
@@ -185,8 +187,9 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  {!week.flipWinnerId &&
-                    players.map((player) => (
+                  {players.map((player) => {
+                    const isWinner = week.flipWinnerId === player.id;
+                    return (
                       <form key={player.id} action={doCoinFlip}>
                         <input type="hidden" name="weekId" value={week.id} />
                         <input
@@ -194,16 +197,22 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                           name="playerId"
                           value={player.id}
                         />
-                        <button type="submit" className={outline}>
+                        <button
+                          type="submit"
+                          disabled={flipLocked}
+                          className={`${isWinner ? button : outline} disabled:cursor-not-allowed disabled:opacity-50`}
+                        >
                           {player.name} won flip
+                          {isWinner && " ✓"}
                         </button>
                       </form>
-                    ))}
+                    );
+                  })}
                   {!week.flipWinnerId && (
                     <form action={doCoinFlip}>
                       <input type="hidden" name="weekId" value={week.id} />
                       <input type="hidden" name="playerId" value="RANDOM" />
-                      <button type="submit" className={button}>
+                      <button type="submit" className={outline}>
                         Flip a coin
                       </button>
                     </form>
@@ -223,8 +232,15 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                     </button>
                   </form>
                 </div>
+
+                {flipLocked && (
+                  <p className="mt-2 text-xs text-zinc-500">
+                    Undo picks to change the coin flip.
+                  </p>
+                )}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>

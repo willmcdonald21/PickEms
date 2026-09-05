@@ -5,6 +5,7 @@ import type { Side } from "@/lib/ats";
 export async function getWeeks() {
   return prisma.week.findMany({
     orderBy: [{ season: "desc" }, { number: "desc" }],
+    include: { _count: { select: { picks: true } } },
   });
 }
 
