@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { makePick } from "./actions";
+import { unlock } from "./auth-actions";
 import {
   getWeekDetail,
   getWeeks,
@@ -8,6 +10,7 @@ import {
   weeklyWinner,
 } from "@/lib/queries";
 import { PICKS_PER_WEEK } from "@/lib/draft";
+import { isUnlocked } from "@/lib/auth";
 import type { Side } from "@/lib/ats";
 
 const RESULT_STYLES: Record<string, string> = {
@@ -40,6 +43,7 @@ export default async function WeekPage({
   if (!detail) return null;
 
   const { week, players, takenSides, nextPickNumber, onTheClock } = detail;
+  const unlocked = await isUnlocked();
   const tallies = tallyPicks(week.picks, players);
   const graded = week.picks.some((p) => p.result !== null);
   const winner = graded ? weeklyWinner(tallies) : null;
@@ -75,6 +79,12 @@ export default async function WeekPage({
           </button>
         </form>
       </div>
+
+      {typeof params.msg === "string" && (
+        <p className="mb-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+          {params.msg}
+        </p>
+      )}
 
       <div className="mb-8 rounded-lg border border-zinc-200 bg-white p-4 text-sm dark:border-zinc-800 dark:bg-zinc-900">
         {week.flipWinner ? (
@@ -162,7 +172,31 @@ export default async function WeekPage({
         </section>
       )}
 
-      {week.status === "DRAFTING" && onTheClock && (
+      {week.status === "DRAFTING" && onTheClock && !unlocked && (
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <h2 className="mb-1 text-lg font-semibold">Enter the league password</h2>
+          <p className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
+            The draft board is hidden until you unlock it.
+          </p>
+          <form action={unlock} className="flex items-end gap-2">
+            <input type="hidden" name="redirectTo" value={`/?week=${week.id}`} />
+            <input
+              type="password"
+              name="password"
+              placeholder="League password"
+              className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+            />
+            <button
+              type="submit"
+              className="rounded-md bg-zinc-900 px-4 py-1.5 text-sm font-semibold text-white dark:bg-zinc-100 dark:text-zinc-900"
+            >
+              Unlock
+            </button>
+          </form>
+        </section>
+      )}
+
+      {week.status === "DRAFTING" && onTheClock && unlocked && (
         <section>
           <h2 className="mb-3 text-lg font-semibold">
             Board &mdash; {onTheClock.name} picks
@@ -195,7 +229,20 @@ export default async function WeekPage({
                           key={side}
                           action={async () => {
                             "use server";
-                            await makePick(week.id, game.id, side);
+                            let failure: string | null = null;
+                            try {
+                              await makePick(week.id, game.id, side);
+                            } catch (err) {
+                              failure =
+                                err instanceof Error
+                                  ? err.message
+                                  : "Could not make that pick.";
+                            }
+                            if (failure) {
+                              redirect(
+                                `/?week=${week.id}&msg=${encodeURIComponent(failure)}`
+                              );
+                            }
                           }}
                         >
                           <button

@@ -15,14 +15,19 @@ and whoever finishes the season with the most ATS wins takes it.
 
 ## Stack
 
-Next.js (App Router) + TypeScript + Tailwind, Prisma + SQLite. Slate, spreads,
-and final scores come from ESPN's public scoreboard endpoint — no API key.
+Next.js (App Router) + TypeScript + Tailwind, Prisma + Postgres (Neon), hosted
+on Vercel. Slate, spreads, and final scores come from ESPN's public scoreboard
+endpoint — no API key.
 
 ## Getting started
 
+You need a free [Neon](https://neon.com) Postgres database — there's no local
+SQLite file any more, so local development talks to the same database as
+production.
+
 ```bash
 npm install
-cp .env.example .env   # set your own ADMIN_PASSWORD
+cp .env.example .env   # paste your Neon URLs + pick a league password
 npx prisma migrate dev
 npm run db:seed        # creates the two players
 npm run dev
@@ -30,6 +35,24 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000). Player names are set in
 `prisma/seed.ts` — edit them before seeding.
+
+`DATABASE_URL` must be Neon's **pooled** string (the host contains `-pooler`)
+and `DIRECT_URL` the unpooled one. Serverless functions open a connection per
+invocation, so queries go through the pooler, while `prisma migrate` needs a
+direct connection.
+
+## Deploying
+
+1. Push to GitHub (already wired up).
+2. Import the repo at [vercel.com](https://vercel.com) — the Hobby plan is free
+   for personal projects.
+3. Add three environment variables in Vercel: `DATABASE_URL`, `DIRECT_URL`, and
+   `ADMIN_PASSWORD`.
+4. Run `npx prisma migrate deploy` and `npm run db:seed` once against Neon.
+
+`package.json` runs `prisma generate` on `postinstall` because Vercel caches
+`node_modules` — without it the deployed Prisma Client can silently go stale
+against a changed schema.
 
 ## Weekly flow
 
@@ -66,9 +89,11 @@ adjusted = 0 → push
 
 ## Notes
 
-- Identity is trust-based — you pick which player you are, there's no login. The
-  admin password only gates syncing, the coin flip, grading, and undo.
+- `ADMIN_PASSWORD` is a single shared league password. It gates entering picks
+  and every admin action; viewing the week and the standings is open to anyone
+  with the link. It keeps strangers out, but it does not stop the two of you
+  from entering each other's picks — there are no per-player logins.
 - **Undo** removes only the most recent pick; deleting a middle pick would leak
   information about the picks made after it.
-- SQLite is local-only. Moving to a hosted Postgres later is a Prisma provider
-  change plus regenerated migrations.
+- Neon's free tier scales the database to zero after ~5 minutes idle, so the
+  first page load after a quiet spell takes about a second.

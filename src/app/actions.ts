@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { fetchSlate } from "@/lib/espn";
 import { gradePick, type Side } from "@/lib/ats";
 import { PICKS_PER_WEEK, playerForPick } from "@/lib/draft";
+import { requireUnlocked } from "@/lib/auth";
 
 function revalidateAll() {
   revalidatePath("/");
@@ -138,6 +139,8 @@ export async function makePick(
   gameId: string,
   side: Side
 ): Promise<void> {
+  await requireUnlocked();
+
   const week = await prisma.week.findUniqueOrThrow({ where: { id: weekId } });
   if (week.status !== "DRAFTING") {
     throw new Error(

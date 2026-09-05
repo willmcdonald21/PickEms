@@ -1,4 +1,3 @@
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import {
@@ -8,42 +7,17 @@ import {
   syncSlate,
   undoLastPick,
 } from "../actions";
+import { unlock, lock } from "../auth-actions";
 import { getWeeks } from "@/lib/queries";
-
-const ADMIN_COOKIE = "pickems_admin";
-
-async function readAdminPassword(): Promise<string | null> {
-  const store = await cookies();
-  const value = store.get(ADMIN_COOKIE)?.value;
-  const expected = process.env.ADMIN_PASSWORD;
-  return expected && value === expected ? value : null;
-}
+import { isUnlocked } from "@/lib/auth";
 
 function backTo(message: string): never {
   redirect(`/admin?msg=${encodeURIComponent(message)}`);
 }
 
-async function unlock(formData: FormData) {
-  "use server";
-  const password = String(formData.get("password") ?? "");
-  if (!process.env.ADMIN_PASSWORD || password !== process.env.ADMIN_PASSWORD) {
-    backTo("Incorrect admin password.");
-  }
-  const store = await cookies();
-  store.set(ADMIN_COOKIE, password, { httpOnly: true, sameSite: "lax" });
-  backTo("Unlocked.");
-}
-
-async function lock() {
-  "use server";
-  const store = await cookies();
-  store.delete(ADMIN_COOKIE);
-  redirect("/admin");
-}
-
 async function run(fn: (password: string) => Promise<void>): Promise<string> {
-  const password = await readAdminPassword();
-  if (!password) return "Unlock first.";
+  if (!(await isUnlocked())) return "Enter the league password first.";
+  const password = process.env.ADMIN_PASSWORD!;
   try {
     await fn(password);
     return "Done.";
@@ -93,7 +67,7 @@ async function doManualSpread(formData: FormData) {
 export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   const params = await searchParams;
   const message = typeof params.msg === "string" ? params.msg : null;
-  const unlocked = (await readAdminPassword()) !== null;
+  const unlocked = await isUnlocked();
 
   const button =
     "rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-semibold text-white dark:bg-zinc-100 dark:text-zinc-900";
@@ -114,9 +88,10 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
           </p>
         )}
         <form action={unlock} className="flex items-end gap-2">
+          <input type="hidden" name="redirectTo" value="/admin" />
           <div>
             <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-              Admin password
+              League password
             </label>
             <input
               type="password"
@@ -147,6 +122,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Admin</h1>
         <form action={lock}>
+          <input type="hidden" name="redirectTo" value="/admin" />
           <button type="submit" className={outline}>
             Lock
           </button>
