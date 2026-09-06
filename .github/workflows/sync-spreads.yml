@@ -1,0 +1,38 @@
+name: Sync spreads from ESPN
+
+# Vercel's own Cron Jobs cap out at once per day on the Hobby plan, which is
+# too coarse here, so GitHub Actions' scheduler triggers the sync instead by
+# calling an authenticated route on the deployed site.
+on:
+  schedule:
+    # Steady background refresh, every 3 hours.
+    - cron: "0 */3 * * *"
+    # Frequent check for games about to kick off. Cheap no-op almost always —
+    # the route only does real work when a kickoff is actually imminent.
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "periodic or imminent"
+        required: false
+        default: "periodic"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine mode
+        id: mode
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "mode=${{ github.event.inputs.mode }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "0 */3 * * *" ]; then
+            echo "mode=periodic" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=imminent" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Call sync endpoint
+        run: |
+          curl -sf -X GET \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://pick-ems-omega.vercel.app/api/cron/sync-spreads?mode=${{ steps.mode.outputs.mode }}"

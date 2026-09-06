@@ -6,7 +6,7 @@ import { fetchSlate } from "@/lib/espn";
 import { gradePick, type Side } from "@/lib/ats";
 import { PICKS_PER_WEEK, playerForPick } from "@/lib/draft";
 import { requireUnlocked } from "@/lib/auth";
-import { resolveSpreadFreeze } from "@/lib/spreadFreeze";
+import { refreshWeekFromEspn } from "@/lib/syncEngine";
 
 function revalidateAll() {
   revalidatePath("/");
@@ -37,67 +37,7 @@ export async function syncSlate(
   adminPassword: string
 ): Promise<void> {
   checkAdminPassword(adminPassword);
-
-  const slate = await fetchSlate(season, weekNumber);
-  if (slate.length === 0) {
-    throw new Error(`ESPN returned no games for ${season} week ${weekNumber}.`);
-  }
-
-  const week = await prisma.week.upsert({
-    where: { season_number: { season, number: weekNumber } },
-    update: {},
-    create: { season, number: weekNumber, status: "SLATE_LOADED" },
-  });
-
-  const now = new Date();
-
-  for (const game of slate) {
-    const existing = await prisma.game.findUnique({
-      where: { espnEventId: game.espnEventId },
-    });
-
-    const spread = resolveSpreadFreeze(
-      existing,
-      game.homeSpread,
-      game.kickoff,
-      now
-    );
-
-    await prisma.game.upsert({
-      where: { espnEventId: game.espnEventId },
-      create: {
-        weekId: week.id,
-        espnEventId: game.espnEventId,
-        homeTeam: game.homeTeam,
-        awayTeam: game.awayTeam,
-        homeAbbr: game.homeAbbr,
-        awayAbbr: game.awayAbbr,
-        kickoff: game.kickoff,
-        homeSpread: spread.homeSpread,
-        spreadFrozenAt: spread.spreadFrozenAt,
-        homeScore: game.homeScore,
-        awayScore: game.awayScore,
-        completed: game.completed,
-      },
-      update: {
-        kickoff: game.kickoff,
-        homeScore: game.homeScore,
-        awayScore: game.awayScore,
-        completed: game.completed,
-        homeSpread: spread.homeSpread,
-        spreadFrozenAt: spread.spreadFrozenAt,
-      },
-    });
-  }
-
-  await prisma.week.update({
-    where: { id: week.id },
-    data: {
-      ...(week.status === "PENDING" ? { status: "SLATE_LOADED" } : {}),
-      ...(week.spreadsFrozenAt === null ? { spreadsFrozenAt: now } : {}),
-    },
-  });
-
+  await refreshWeekFromEspn(season, weekNumber);
   revalidateAll();
 }
 
