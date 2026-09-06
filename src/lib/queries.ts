@@ -28,7 +28,7 @@ export async function getWeekDetail(weekId: string) {
     ? players.find((p) => p.id !== week.flipWinnerId) ?? null
     : null;
 
-  const takenSides = new Set(week.picks.map((p) => `${p.gameId}:${p.side}`));
+  const takenGameIds = new Set(week.picks.map((p) => p.gameId));
   const nextPickNumber =
     week.picks.length < PICKS_PER_WEEK ? week.picks.length + 1 : null;
 
@@ -40,7 +40,7 @@ export async function getWeekDetail(weekId: string) {
         ) ?? null
       : null;
 
-  return { week, players, other, takenSides, nextPickNumber, onTheClock };
+  return { week, players, other, takenGameIds, nextPickNumber, onTheClock };
 }
 
 export type WeekTally = {
@@ -51,19 +51,42 @@ export type WeekTally = {
   pushes: number;
 };
 
+/**
+ * Every pick is a head-to-head stake on one game: if it covers, the picker
+ * gets the win; if it fails, the win goes to the OTHER player instead, as if
+ * they'd implicitly held the other side without drafting it. A push moves
+ * nothing — it's tallied only as the picker's own push, informational.
+ *
+ * This makes a fully-graded week zero-sum: total wins across both players
+ * always equals (picks - pushes), split between them.
+ */
 export function tallyPicks(
-  picks: { playerId: string; player: { name: string }; result: string | null }[],
+  picks: { playerId: string; result: string | null }[],
   players: { id: string; name: string }[]
 ): WeekTally[] {
   return players.map((player) => {
-    const own = picks.filter((p) => p.playerId === player.id);
-    return {
-      playerId: player.id,
-      name: player.name,
-      wins: own.filter((p) => p.result === "WIN").length,
-      losses: own.filter((p) => p.result === "LOSS").length,
-      pushes: own.filter((p) => p.result === "PUSH").length,
-    };
+    const opponent = players.find((p) => p.id !== player.id);
+    let wins = 0;
+    let losses = 0;
+    let pushes = 0;
+
+    for (const pick of picks) {
+      const isOwn = pick.playerId === player.id;
+      const isOpponent = opponent && pick.playerId === opponent.id;
+      if (!isOwn && !isOpponent) continue;
+
+      if (pick.result === "PUSH") {
+        if (isOwn) pushes += 1;
+      } else if (pick.result === "WIN") {
+        if (isOwn) wins += 1;
+        else losses += 1;
+      } else if (pick.result === "LOSS") {
+        if (isOwn) losses += 1;
+        else wins += 1;
+      }
+    }
+
+    return { playerId: player.id, name: player.name, wins, losses, pushes };
   });
 }
 

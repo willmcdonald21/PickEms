@@ -42,7 +42,7 @@ export default async function WeekPage({
   const detail = await getWeekDetail(weekId);
   if (!detail) return null;
 
-  const { week, players, takenSides, nextPickNumber, onTheClock } = detail;
+  const { week, players, takenGameIds, nextPickNumber, onTheClock } = detail;
   const unlocked = await isUnlocked();
   const tallies = tallyPicks(week.picks, players);
   const graded = week.picks.some((p) => p.result !== null);
@@ -50,7 +50,7 @@ export default async function WeekPage({
   const now = new Date();
 
   const draftable = week.games.filter(
-    (g) => g.homeSpread !== null && g.kickoff > now
+    (g) => g.homeSpread !== null && g.kickoff > now && !takenGameIds.has(g.id)
   );
 
   return (
@@ -222,40 +222,35 @@ export default async function WeekPage({
                     })}
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    {(["AWAY", "HOME"] as const).map((side) => {
-                      const taken = takenSides.has(`${game.id}:${side}`);
-                      return (
-                        <form
-                          key={side}
-                          action={async () => {
-                            "use server";
-                            let failure: string | null = null;
-                            try {
-                              await makePick(week.id, game.id, side);
-                            } catch (err) {
-                              failure =
-                                err instanceof Error
-                                  ? err.message
-                                  : "Could not make that pick.";
-                            }
-                            if (failure) {
-                              redirect(
-                                `/?week=${week.id}&msg=${encodeURIComponent(failure)}`
-                              );
-                            }
-                          }}
+                    {(["AWAY", "HOME"] as const).map((side) => (
+                      <form
+                        key={side}
+                        action={async () => {
+                          "use server";
+                          let failure: string | null = null;
+                          try {
+                            await makePick(week.id, game.id, side);
+                          } catch (err) {
+                            failure =
+                              err instanceof Error
+                                ? err.message
+                                : "Could not make that pick.";
+                          }
+                          if (failure) {
+                            redirect(
+                              `/?week=${week.id}&msg=${encodeURIComponent(failure)}`
+                            );
+                          }
+                        }}
+                      >
+                        <button
+                          type="submit"
+                          className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium hover:border-zinc-500 dark:border-zinc-700"
                         >
-                          <button
-                            type="submit"
-                            disabled={taken}
-                            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium enabled:hover:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700"
-                          >
-                            {sideLabel(game, side)}
-                            {taken && " · taken"}
-                          </button>
-                        </form>
-                      );
-                    })}
+                          {sideLabel(game, side)}
+                        </button>
+                      </form>
+                    ))}
                   </div>
                 </div>
               ))}

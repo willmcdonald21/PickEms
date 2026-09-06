@@ -75,8 +75,9 @@ model DraftPick {
   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
   game   Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
-  // Same side can't be taken twice; the opposite side stays open.
-  @@unique([gameId, side])
+  // One pick per game, period — once either side is drafted, the whole
+  // matchup is gone (the opposite side is not a separate available pick).
+  @@unique([gameId])
   @@unique([weekId, pickNumber])
   @@index([weekId])
 }

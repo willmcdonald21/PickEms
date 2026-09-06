@@ -190,7 +190,7 @@ export async function makePick(
       "code" in err &&
       (err as { code: string }).code === "P2002"
     ) {
-      throw new Error("That side has already been drafted.");
+      throw new Error("That game has already been drafted.");
     }
     throw err;
   }

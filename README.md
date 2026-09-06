@@ -9,8 +9,14 @@ and whoever finishes the season with the most ATS wins takes it.
 - **Coin flip** each week. The winner gets picks **1, 3, 5**; the loser gets
   **2, 4**. The 3-vs-2 split is the point — winning the flip is the weekly edge.
 - **Draft a side, not a winner.** You take `SEA -3.5`, not "Seattle."
-- **Both sides stay live.** If one of you takes `SEA -3.5`, the other can take
-  `NE +3.5`. Only the identical side is blocked.
+- **One pick per game.** Once either side of a matchup is drafted, the whole
+  game is gone — if you take `SEA -3.5`, `NE +3.5` isn't available to your
+  opponent either.
+- **A losing pick hands the win to the other player.** If your pick fails to
+  cover, your opponent is credited the win for it, as if they'd implicitly held
+  the other side without drafting it. A push moves nothing — no one gains. This
+  makes a fully graded week zero-sum: with 5 picks and P pushes, the total wins
+  between you always add up to `5 - P`.
 - **Weekly winner** = most ATS wins. **Season champion** = most total ATS wins.
 
 ## Stack
