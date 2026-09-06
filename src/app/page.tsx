@@ -207,6 +207,10 @@ export default async function WeekPage({
             </p>
           ) : (
             <div className="flex flex-col gap-2">
+              <div className="grid grid-cols-2 gap-2 px-3 text-xs font-medium uppercase tracking-wide text-zinc-500">
+                <span>Away</span>
+                <span>Home</span>
+              </div>
               {draftable.map((game) => (
                 <div
                   key={game.id}
