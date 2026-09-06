@@ -6,6 +6,7 @@ import { fetchSlate } from "@/lib/espn";
 import { gradePick, type Side } from "@/lib/ats";
 import { PICKS_PER_WEEK, playerForPick } from "@/lib/draft";
 import { requireUnlocked } from "@/lib/auth";
+import { resolveSpreadFreeze } from "@/lib/spreadFreeze";
 
 function revalidateAll() {
   revalidatePath("/");
@@ -55,10 +56,12 @@ export async function syncSlate(
       where: { espnEventId: game.espnEventId },
     });
 
-    // Spreads are write-once: ESPN drops odds after a game goes final, so a
-    // frozen line must never be overwritten by a later sync.
-    const freezeSpread =
-      existing?.spreadFrozenAt == null && game.homeSpread !== null;
+    const spread = resolveSpreadFreeze(
+      existing,
+      game.homeSpread,
+      game.kickoff,
+      now
+    );
 
     await prisma.game.upsert({
       where: { espnEventId: game.espnEventId },
@@ -70,8 +73,8 @@ export async function syncSlate(
         homeAbbr: game.homeAbbr,
         awayAbbr: game.awayAbbr,
         kickoff: game.kickoff,
-        homeSpread: game.homeSpread,
-        spreadFrozenAt: game.homeSpread !== null ? now : null,
+        homeSpread: spread.homeSpread,
+        spreadFrozenAt: spread.spreadFrozenAt,
         homeScore: game.homeScore,
         awayScore: game.awayScore,
         completed: game.completed,
@@ -81,9 +84,8 @@ export async function syncSlate(
         homeScore: game.homeScore,
         awayScore: game.awayScore,
         completed: game.completed,
-        ...(freezeSpread
-          ? { homeSpread: game.homeSpread, spreadFrozenAt: now }
-          : {}),
+        homeSpread: spread.homeSpread,
+        spreadFrozenAt: spread.spreadFrozenAt,
       },
     });
   }

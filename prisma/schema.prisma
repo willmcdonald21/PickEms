@@ -27,6 +27,9 @@ model Week {
   flipWinner   Player? @relation("FlipWinner", fields: [flipWinnerId], references: [id])
   flippedAt    DateTime?
 
+  // Timestamp of this week's first slate sync — informational only. Each
+  // Game freezes its own spread individually at its own kickoff, not all
+  // together at this moment.
   spreadsFrozenAt DateTime?
 
   games Game[]
@@ -47,7 +50,9 @@ model Game {
   kickoff  DateTime
 
   // Always the HOME team's line: negative means home is favored.
-  // Frozen once at slate load — ESPN drops odds after a game goes final.
+  // Stays live on every re-sync until kickoff, then freezes for good —
+  // ESPN drops odds once a game goes final, so a line not captured by
+  // kickoff can never be recovered.
   homeSpread     Float?
   spreadFrozenAt DateTime?
 

@@ -164,8 +164,8 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
           </button>
         </form>
         <p className="mt-2 text-xs text-zinc-500">
-          Spreads are frozen the first time a game is loaded and are never
-          overwritten by a later sync.
+          Spreads stay live on every re-sync until a game kicks off, then lock
+          for good.
         </p>
       </section>
 

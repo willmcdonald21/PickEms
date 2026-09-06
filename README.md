@@ -71,13 +71,14 @@ against a changed schema.
 4. **Admin → Sync scores & grade** once games finish. Grades every pick W/L/PUSH
    and decides the week.
 
-## Why spreads are frozen
+## How spreads freeze
 
 ESPN **drops the odds once a game goes final** — a line that isn't captured
-before kickoff is gone for good. So the spread is written once, when the slate
-is first loaded, and no later sync overwrites it. Both players are graded
-against that same frozen line, which guarantees exactly one side covers (or it's
-a push).
+before kickoff is gone for good. So each game's spread stays live — re-syncing
+keeps it current with the market — right up until that game's own kickoff,
+then it locks permanently. Both players are always graded against that one
+frozen line, which guarantees exactly one side covers (or it's a push); no
+after-the-fact line movement can change that.
 
 If ESPN has no line for a game, that game isn't draftable until you set one by
 hand under **Games missing a spread** in Admin.
